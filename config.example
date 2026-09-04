@@ -1,0 +1,5 @@
+# Optional override for the allowed LAN range.
+# Default ("auto") = /24 subnet of the phone's wlan0 interface.
+# "rfc1918"       = 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
+# explicit list  = space separated, e.g. "192.168.0.0/16 10.0.0.0/8"
+LAN_SUBNETS="auto"
