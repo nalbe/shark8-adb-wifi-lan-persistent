@@ -1,0 +1,6 @@
+id=adb_wifi
+name=ADB Over Wi-Fi (Persistent, LAN-locked)
+version=3.1
+versionCode=4
+author=Bastet
+description=Every boot: adbd TCP on 5555, firewalled to LAN subnet only (auto-detect or configurable). USB adb unaffected. No init changes, no overlays.
