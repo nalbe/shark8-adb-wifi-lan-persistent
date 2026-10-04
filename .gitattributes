@@ -1,0 +1,8 @@
+.gitattributes text eol=lf
+.gitignore text eol=lf
+*.sh text eol=lf
+*.jsh text eol=lf
+module.prop text eol=lf
+*.md text eol=lf
+config.example text eol=lf
+*.ps1 text eol=crlf
