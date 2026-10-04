@@ -1,6 +1,6 @@
 # Build the KernelSU module zip with Unix permissions preserved.
 # Usage: powershell -ExecutionPolicy Bypass -File build.ps1
-# Output: shark8-adb-wifi-lan-persistent-<version>.zip next to this script.
+# Output: release\shark8-adb-wifi-lan-persistent-<version>.zip
 
 $ErrorActionPreference = "Stop"
 Add-Type -AssemblyName System.IO.Compression
@@ -11,13 +11,16 @@ $modVars = Get-Content (Join-Path $root "module\module.prop") | Where-Object { $
 $version = ($modVars | Where-Object { $_ -like "version=*" }) -replace "version=", ""
 if ([string]::IsNullOrWhiteSpace($version)) { $version = "3.1" }
 
-$zipPath = Join-Path $root "shark8-adb-wifi-lan-persistent-$version.zip"
+$releaseDir = Join-Path $root "release"
+if (-not (Test-Path $releaseDir)) { New-Item -ItemType Directory -Path $releaseDir | Out-Null }
+$zipPath = Join-Path $releaseDir "shark8-adb-wifi-lan-persistent-$version.zip"
 Remove-Item $zipPath -Force -ErrorAction SilentlyContinue
 
 # entry name -> source file -> unix mode (0755 for scripts, 0644 otherwise)
 $files = @(
     @{ entry = "module.prop";   src = "module\module.prop";   mode = 0x81A4 },
     @{ entry = "service.sh";    src = "module\service.sh";    mode = 0x81ED },
+    @{ entry = "watch.sh";      src = "module\watch.sh";      mode = 0x81ED },
     @{ entry = "config.example"; src = "config.example";      mode = 0x81A4 }
 )
 

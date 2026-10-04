@@ -1,6 +1,6 @@
 id=adb_wifi
 name=ADB Over Wi-Fi (Persistent, LAN-locked)
-version=3.1
-versionCode=4
+version=5.2
+versionCode=8
 author=Bastet
-description=Every boot: adbd TCP on 5555, firewalled to LAN subnet only (auto-detect or configurable). USB adb unaffected. No init changes, no overlays.
+description=adbd TCP on 5555 from boot, firewalled to the live wlan0 subnet. A netlink watcher retargets the LAN rule on every Wi-Fi connect/disconnect, so debug ADB comes up exactly when Wi-Fi does. USB adb unaffected. No init changes, no overlays.
