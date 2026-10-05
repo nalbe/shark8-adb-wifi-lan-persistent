@@ -102,6 +102,22 @@ Android's stock **Wireless debugging** (Developer options) is the independent
 escape hatch: it publishes `_adb-tls-connect._tcp` over mDNS, so
 `adb mdns services` finds the live port even when 5555 is firewalled.
 
+### The Wireless debugging toggle stays off
+
+The module opens the port itself, so the **Wireless debugging** toggle in
+Developer options stays off and never changes. The toggle does not reflect
+this module - nothing here reads it or waits for it, and you do not need to
+enable anything.
+
+Two ways to tell them apart:
+
+- `adb connect <ip>:5555` is the module: firewalled to your LAN.
+- A port from `adb mdns services` is Android's wireless debugging: a separate
+  listener with no fence on it, reachable by anything that can see its mDNS
+  advertisement. On a phone where `adbd` does not check keys, that is an
+  unauthenticated root door - so use it only as an escape hatch and turn it
+  straight back off.
+
 ## Customizing the allowed range
 
 Create `/data/adb/modules/adb_wifi/config` with:
