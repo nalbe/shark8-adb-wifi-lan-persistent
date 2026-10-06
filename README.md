@@ -65,6 +65,9 @@ module files at its root (`module.prop`, `service.sh`, `watch.sh`), which is
 exactly what the installer expects; `module/` in this repo is only the source
 layout.
 
+> The **v3.1** release is deprecated: it can leave port 5555 firewalled shut with
+> no way back in over Wi-Fi. Install a current release.
+
 Or push the files onto a rooted device by hand:
 
 ```
@@ -166,31 +169,6 @@ LAN_SUBNETS="192.168.0.0/16 10.0.0.0/8"
 (`192.168.0.x` and `192.168.1.x`); `auto` adapts to whatever LAN the phone is
 on, but a pinned list is worth it if you roam onto untrusted networks, since it
 does not follow the phone off your own range.
-
-## Bootloop safety (lessons learned)
-
-An earlier version of this module broke the device, and an even earlier one
-locked out ADB over Wi-Fi. Causes, avoided here:
-
-- `setprop persist.adb.tcp.port 5555` - a *persistent* property; if adbd
-  misbehaved it poisoned every subsequent boot
-- `setprop service.adb.adb_root 1` - clashed with KernelSU's own root handling
-- an infinite `while`-wait on `sys.boot_completed` in `service.sh`
-- a plain `setprop ctl.restart adbd` from an `adb shell`-launched run: init
-  SIGKILLs adbd's whole process group, which takes a script running inside
-  that adb session down with it *before* the firewall is applied. The bounce
-  therefore runs as a detached `setsid` child.
-- a boot path whose reachability depended on a background daemon: if that
-  daemon did not come up, port 5555 stayed REJECT-only and there was no way in
-
-Current version uses only runtime props, bounded waits, the firewall lives in
-`ADB_WIFI`/`ADB_WIFI6` chains, adbd is told to listen only after the fence, and
-the whole run is logged under `adb_wifi`. A bad boot is self-healing.
-
-The published **v3.1** release is the one that locks out: it waits on
-`sys.boot_completed` and restarts adbd from inside the adb session, so the
-firewall may never get applied. Its release page says so - install the current
-version instead.
 
 ## License
 
