@@ -1,7 +1,7 @@
 id=adb_wifi
 name=ADB Over Wi-Fi (Persistent, LAN-locked)
-version=6.0
-versionCode=11
+version=6.1
+versionCode=12
 author=Bastet
 updateJson=https://raw.githubusercontent.com/nalbe/shark8-adb-wifi-lan-persistent/main/update.json
 description=adbd TCP on port 5555 from boot, firewalled to the live wlan0 subnet. A netlink watcher retargets the LAN rule on every Wi-Fi connect/disconnect, so debug ADB comes up exactly when Wi-Fi does. Port, IPv4/IPv6 ranges, and an optional gate on the network the phone is on come from a config file. USB adb unaffected. No init changes, no overlays.
