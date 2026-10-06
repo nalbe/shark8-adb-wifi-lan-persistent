@@ -65,9 +65,6 @@ module files at its root (`module.prop`, `service.sh`, `watch.sh`), which is
 exactly what the installer expects; `module/` in this repo is only the source
 layout.
 
-> The **v3.1** release is deprecated: it can leave port 5555 firewalled shut with
-> no way back in over Wi-Fi. Install a current release.
-
 Or push the files onto a rooted device by hand:
 
 ```
