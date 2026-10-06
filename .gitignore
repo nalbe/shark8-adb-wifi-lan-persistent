@@ -7,6 +7,9 @@ release/
 # Build input: one paragraph of changelog for the version being built
 notes.txt
 
+# Test scratch: stubs and canned iptables state
+test/sandbox/
+
 # OS junk
 Thumbs.db
 Desktop.ini

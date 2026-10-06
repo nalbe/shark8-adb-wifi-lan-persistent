@@ -16,7 +16,7 @@ connects and gets `root` instantly.
 Since you cannot trust the key layer, this module enforces security at the
 **network layer** instead:
 
-- adbd listens on TCP `5555`
+- adbd listens on TCP `5555` (configurable)
 - `iptables` accepts connections **only from your LAN subnet**
 - everything else (VPN, WAN, other subnets, IPv6) is rejected
 - USB adb is untouched, so there is always a wired way back in
@@ -25,23 +25,23 @@ Since you cannot trust the key layer, this module enforces security at the
 
 `service.sh` runs at every boot, in this order:
 
-1. **Fence first.** `iptables` chain `ADB_WIFI` with a terminal `REJECT` of
-   tcp/5555 for IPv4 and IPv6. Idempotent, never flushed.
-2. **LAN rule.** `watch.sh once` applies the `ACCEPT` rule for the subnet
+1. **Fence first.** `iptables` chain `ADB_WIFI` with a terminal `REJECT` of the
+   configured port for IPv4 and IPv6. Idempotent, never flushed.
+2. **LAN rule.** `watch.sh once` applies the `ACCEPT` rules for the network
    wlan0 is on at that moment (bounded wait, max 40s).
-3. **Then adbd.** `setprop service.adb.tcp.port 5555` plus a detached `setsid`
-   bounce, so `adbd` never listens on 5555 before the fence and the LAN rule
-   are in place.
+3. **Then adbd.** `setprop service.adb.tcp.port` plus a detached `setsid`
+   bounce, so `adbd` never listens before the fence and the LAN rules are in
+   place.
 4. **Watcher daemon.** `watch.sh` follows wlan0 address changes forever and
-   rewrites the `ACCEPT` list on each one.
+   rewrites the `ACCEPT` lists on each one.
 
 The watcher is what makes the trigger correct. `ip monitor address dev wlan0`
-reports wlan0 gaining or losing its IPv4 address, which *is* Wi-Fi
+reports wlan0 gaining or losing its address, which *is* Wi-Fi
 connecting/disconnecting, so:
 
 ```
-03:00:56  5555 accept=[]                 Wi-Fi off  -> port closed
-03:01:16  5555 accept=[192.168.1.0/24]    Wi-Fi on   -> ADB reachable
+03:00:56  port 5555 accept4=[] accept6=[]                  Wi-Fi off -> port closed
+03:01:16  port 5555 accept4=[192.168.1.0/24] accept6=[]   Wi-Fi on  -> ADB reachable
 ```
 
 No polling, no timers, no dependence on how long boot takes. Wi-Fi enabled but
@@ -106,6 +106,17 @@ the release body. Output is `release\shark8-adb-wifi-lan-persistent-<version>.zi
 plus `update.json` at the repo root; commit `update.json`, tag `v<version>`,
 attach the zip to the release.
 
+The scripts are tested off-device against stub `ip`/`iptables`/`log` binaries:
+
+```
+sh test/run-tests.sh module
+```
+
+That harness covers config parsing, the policy the watcher installs for every
+`auto`/`none`/list combination, the fence bookkeeping in `service.sh`, and the
+refusal to run on a broken config. What it cannot cover is the netlink event
+loop and the real iptables, which is what the on-device check above is for.
+
 ## Verifying it on the device
 
 Turn Wi-Fi off and on again; the log must show the `ACCEPT` list going empty
@@ -147,25 +158,47 @@ Two ways to tell them apart:
   unauthenticated root door - so use it only as an escape hatch and turn it
   straight back off.
 
-## Customizing the allowed range
+## Configuration
 
-Create `/data/adb/modules/adb_wifi/config` with:
+Everything configurable lives in `/data/adb/modules/adb_wifi/config`, one
+`KEY=value` per line, `#` for comments. The file is parsed line by line, never
+sourced: an unknown key or a malformed value aborts the boot script with a
+`FATAL` in the log instead of quietly running as root. A missing config means
+all defaults.
+
+| Key | Default | Values |
+| --- | --- | --- |
+| `ADB_PORT` | `5555` | port adbd listens on, 1-6555 |
+| `LAN_SUBNETS` | `auto` | `auto`, `none`, or a space separated CIDR list |
+| `IPV6_SUBNETS` | `off` | `off`, `auto`, or a space separated CIDR list |
+| `VERBOSE` | `0` | `1` logs every firewall rewrite at debug level |
 
 ```
-# Default: the /24 subnet of the phone's wlan0 interface, kept in sync live
-LAN_SUBNETS="auto"
+ADB_PORT=5555
 
-# Or: standard RFC1918 private ranges
-LAN_SUBNETS="rfc1918"                  # 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
-
-# Or: your own explicit list (space separated)
+# IPv4 the firewall lets reach the port:
+#   auto    the /24 wlan0 is on right now, live-tracked
+#   none    nothing is allowed: the port stays closed to the network
+#   list    your own ranges, e.g. the usual home routers
 LAN_SUBNETS="192.168.0.0/16 10.0.0.0/8"
+
+# IPv6 is rejected outright unless you ask for it. auto takes the /64 wlan0 is
+# on and skips link-local, which only ever reaches neighbours on the same link.
+IPV6_SUBNETS="off"
+
+VERBOSE=0
 ```
 
-`192.168.0.0/16` in the explicit list covers every common home router range
-(`192.168.0.x` and `192.168.1.x`); `auto` adapts to whatever LAN the phone is
-on, but a pinned list is worth it if you roam onto untrusted networks, since it
-does not follow the phone off your own range.
+`auto` for IPv4 tracks wlan0, so the phone is reachable on whatever LAN it joins;
+a pinned list is worth it if you roam onto untrusted networks, since it does not
+follow the phone off your own range. `192.168.0.0/16` covers both `192.168.0.x`
+and `192.168.1.x`, i.e. most home routers.
+
+`none` is the kill switch: the fence stays up, no `ACCEPT` is installed, so the
+port is closed from everywhere without uninstalling anything.
+
+Changing `ADB_PORT` re-fences on the new port at the next boot and drops the
+fence rules for the old one; `adbd` follows the new port after its bounce.
 
 ## License
 

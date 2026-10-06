@@ -1,6 +1,22 @@
-# Optional override for the allowed LAN range.
-# Default ("auto") = /24 subnet of the phone's wlan0 interface, kept in sync
-#   live on every Wi-Fi connect/disconnect.
-# "rfc1918"       = 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
-# explicit list  = space separated, e.g. "192.168.0.0/16 10.0.0.0/8"
+# Optional config for the adb_wifi module.
+#
+# One KEY=value per line, parsed line by line and never sourced: an unknown key
+# or a malformed value stops the boot script with a FATAL in
+# logcat -s adb_wifi:*. Comment with #. A missing config means all defaults.
+
+# Port adbd listens on for Wi-Fi debugging (1-6555).
+ADB_PORT=5555
+
+# Which IPv4 ranges the firewall lets reach the port:
+#   auto      the /24 wlan0 is on right now, live-tracked
+#   none      nothing is allowed: the port stays closed to the network
+#   CIDR list space separated, e.g. "192.168.0.0/16 10.0.0.0/8"
 LAN_SUBNETS="auto"
+
+# Same values for IPv6, plus off (default): every IPv6 packet is rejected.
+#   auto      the /64 wlan0 is on, live-tracked, link-local skipped
+#   CIDR list e.g. "fd00::/8"
+IPV6_SUBNETS="off"
+
+# 1 logs every firewall rewrite at debug level.
+VERBOSE=0

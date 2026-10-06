@@ -40,6 +40,7 @@ Remove-Item $zipPath -Force -ErrorAction SilentlyContinue
 # entry name -> source file -> unix mode (0755 for scripts, 0644 otherwise)
 $files = @(
     @{ entry = "module.prop"; src = "module\module.prop"; mode = 0x81A4 },
+    @{ entry = "common.sh";   src = "module\common.sh";   mode = 0x81ED },
     @{ entry = "service.sh";  src = "module\service.sh";  mode = 0x81ED },
     @{ entry = "watch.sh";    src = "module\watch.sh";    mode = 0x81ED }
 )
