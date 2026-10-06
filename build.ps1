@@ -1,27 +1,47 @@
 # Build the KernelSU module zip with Unix permissions preserved.
 # Usage: powershell -ExecutionPolicy Bypass -File build.ps1
 # Output: release\shark8-adb-wifi-lan-persistent-<version>.zip
+#         update.json at the repo root (KernelSU in-app update manifest, commit it)
 
 $ErrorActionPreference = "Stop"
 Add-Type -AssemblyName System.IO.Compression
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 
+$repo = "nalbe/shark8-adb-wifi-lan-persistent"
+
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
-$modVars = Get-Content (Join-Path $root "module\module.prop") | Where-Object { $_ -match "^(version|versionCode)=" }
-$version = ($modVars | Where-Object { $_ -like "version=*" }) -replace "version=", ""
-if ([string]::IsNullOrWhiteSpace($version)) { $version = "3.1" }
+$propPath = Join-Path $root "module\module.prop"
+
+# version and versionCode are the single source of truth for the zip name,
+# the tag and the update manifest
+$version = $null
+$versionCode = $null
+foreach ($line in Get-Content $propPath) {
+    if ($line -match "^version=(.+)$") { $version = $Matches[1].Trim() }
+    elseif ($line -match "^versionCode=(\d+)$") { $versionCode = [int]$Matches[1] }
+}
+if (-not $version -or -not $versionCode) {
+    throw "module\module.prop must define version= and versionCode="
+}
+
+# one paragraph per release, consumed by update.json and the release body
+$notesPath = Join-Path $root "notes.txt"
+if (-not (Test-Path $notesPath)) {
+    throw "notes.txt is missing: write the changelog for v$version there before building"
+}
+$changelog = ((Get-Content $notesPath -Raw).Trim() -replace "\s*\r?\n\s*", " ")
 
 $releaseDir = Join-Path $root "release"
 if (-not (Test-Path $releaseDir)) { New-Item -ItemType Directory -Path $releaseDir | Out-Null }
-$zipPath = Join-Path $releaseDir "shark8-adb-wifi-lan-persistent-$version.zip"
+$zipName = "shark8-adb-wifi-lan-persistent-$version.zip"
+$zipPath = Join-Path $releaseDir $zipName
 Remove-Item $zipPath -Force -ErrorAction SilentlyContinue
 
 # entry name -> source file -> unix mode (0755 for scripts, 0644 otherwise)
 $files = @(
-    @{ entry = "module.prop";   src = "module\module.prop";   mode = 0x81A4 },
-    @{ entry = "service.sh";    src = "module\service.sh";    mode = 0x81ED },
-    @{ entry = "watch.sh";      src = "module\watch.sh";      mode = 0x81ED },
-    @{ entry = "config.example"; src = "config.example";      mode = 0x81A4 }
+    @{ entry = "module.prop"; src = "module\module.prop"; mode = 0x81A4 },
+    @{ entry = "service.sh";  src = "module\service.sh";  mode = 0x81ED },
+    @{ entry = "watch.sh";    src = "module\watch.sh";    mode = 0x81ED }
 )
 
 $fs = [System.IO.File]::Open($zipPath, [System.IO.FileMode]::CreateNew)
@@ -40,4 +60,14 @@ try {
     $fs.Dispose()
 }
 
-Write-Host ("built: {0}" -f $zipPath)
+$update = [ordered]@{
+    version     = $version
+    versionCode = $versionCode
+    zipUrl      = "https://github.com/$repo/releases/download/v$version/$zipName"
+    changelog   = $changelog
+}
+$json = ($update | ConvertTo-Json) -replace "\r\n", "`n"
+[System.IO.File]::WriteAllText((Join-Path $root "update.json"), $json + "`n", (New-Object System.Text.UTF8Encoding($false)))
+
+Write-Host ("built:   {0}" -f $zipPath)
+Write-Host ("written: {0}" -f (Join-Path $root "update.json"))

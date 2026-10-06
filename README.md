@@ -59,23 +59,52 @@ Every step is logged under the `adb_wifi` tag (`logcat -s adb_wifi:*`).
 
 ## Install
 
+Flash the release zip in the KernelSU app: **Modules -> Install from storage ->
+`shark8-adb-wifi-lan-persistent-<version>.zip`**, then reboot. The zip holds the
+module files at its root (`module.prop`, `service.sh`, `watch.sh`), which is
+exactly what the installer expects; `module/` in this repo is only the source
+layout.
+
+Or push the files onto a rooted device by hand:
+
 ```
+adb push module/module.prop  /data/adb/modules/adb_wifi/module.prop
 adb push module/service.sh   /data/adb/modules/adb_wifi/service.sh
 adb push module/watch.sh     /data/adb/modules/adb_wifi/watch.sh
-adb push module/module.prop  /data/adb/modules/adb_wifi/module.prop
 adb shell chmod 755 /data/adb/modules/adb_wifi/service.sh
 adb shell chmod 755 /data/adb/modules/adb_wifi/watch.sh
 adb reboot
 ```
-
-Or: put the `module/` tree (renamed to `adb_wifi/`) under `/data/adb/modules/`
-via Root Explorer / KernelSU manager and reboot.
 
 Then connect from your PC:
 
 ```
 adb connect <phone-ip>:5555
 ```
+
+## Upgrading
+
+The module publishes an update manifest (`updateJson` in `module.prop` ->
+`update.json` in this repo), so the KernelSU app shows **Update** on the module
+as soon as a newer `versionCode` is published. Tap it, reboot, done. Upgrades
+keep your `/data/adb/modules/adb_wifi/config`.
+
+By hand, push the three files over the installed ones and reboot; keep the
+config file if you have one. To remove the module, uninstall it in the
+KernelSU app, which deletes the module directory.
+
+## Building
+
+```
+powershell -ExecutionPolicy Bypass -File build.ps1
+```
+
+`module/module.prop` is the source of truth: `version` names the zip and the
+tag, `versionCode` is what the manager compares. Put the release changelog in
+`notes.txt` (one paragraph) - the build reads it into `update.json` and it is
+the release body. Output is `release\shark8-adb-wifi-lan-persistent-<version>.zip`
+plus `update.json` at the repo root; commit `update.json`, tag `v<version>`,
+attach the zip to the release.
 
 ## Verifying it on the device
 
@@ -157,6 +186,11 @@ locked out ADB over Wi-Fi. Causes, avoided here:
 Current version uses only runtime props, bounded waits, the firewall lives in
 `ADB_WIFI`/`ADB_WIFI6` chains, adbd is told to listen only after the fence, and
 the whole run is logged under `adb_wifi`. A bad boot is self-healing.
+
+The published **v3.1** release is the one that locks out: it waits on
+`sys.boot_completed` and restarts adbd from inside the adb session, so the
+firewall may never get applied. Its release page says so - install the current
+version instead.
 
 ## License
 

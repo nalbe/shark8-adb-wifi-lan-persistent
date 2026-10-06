@@ -1,0 +1,6 @@
+{
+    "version":  "5.3",
+    "versionCode":  9,
+    "zipUrl":  "https://github.com/nalbe/shark8-adb-wifi-lan-persistent/releases/download/v5.3/shark8-adb-wifi-lan-persistent-5.3.zip",
+    "changelog":  "In-app updates: module.prop points at update.json, so the KernelSU app now offers Update for this module. The install zip ships only module.prop, service.sh and watch.sh; README covers both install routes (flash the zip / push the files), upgrading, and the build."
+}

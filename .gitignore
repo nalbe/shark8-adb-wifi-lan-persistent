@@ -2,6 +2,10 @@
 *.zip
 *.apk
 *.rar
+release/
+
+# Build input: one paragraph of changelog for the version being built
+notes.txt
 
 # OS junk
 Thumbs.db
