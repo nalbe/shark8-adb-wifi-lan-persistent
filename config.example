@@ -1,10 +1,12 @@
-# Optional config for the adb_wifi module.
+# Optional config for the adb_wifi module: copy it to
+# /data/adb/modules/adb_wifi/config. A missing file means all defaults.
 #
 # One KEY=value per line, parsed line by line and never sourced: an unknown key
 # or a malformed value stops the boot script with a FATAL in
-# logcat -s adb_wifi:*. Comment with #. A missing config means all defaults.
+# logcat -s adb_wifi:*. Comment with #, so # cannot appear inside a value.
+# The file is read at boot only: edits take effect at the next reboot.
 
-# Port adbd listens on for Wi-Fi debugging (1-6555).
+# Port adbd listens on for Wi-Fi debugging (1-65535).
 ADB_PORT=5555
 
 # Which IPv4 ranges the firewall lets reach the port:
@@ -17,6 +19,26 @@ LAN_SUBNETS="auto"
 #   auto      the /64 wlan0 is on, live-tracked, link-local skipped
 #   CIDR list e.g. "fd00::/8"
 IPV6_SUBNETS="off"
+
+# What the firewall asks about before it admits anyone.
+#   subnet (default) the address alone decides: LAN_SUBNETS above
+#   ssid           the network wlan0 is on decides: off any listed network the
+#                  port is closed to everyone
+# Both ask at once: inside a trusted network the ranges above still decide who
+# connects. The ssid gate needs one of the two lists below and the system iw
+# tool, or the boot script stops with a FATAL.
+GATE="subnet"
+
+# Under GATE=ssid, the networks that open the port. Space separated, matched
+# against the name the AP broadcasts, case sensitive. A name containing a space
+# matches by its first word only, so those go by TRUSTED_BSSIDS. On the phone:
+#   iw dev wlan0 link
+TRUSTED_SSIDS=""
+
+# Same gate, matched on the radio address instead of the name. Useful when the
+# name is one you would rather not write down, and it also holds against an
+# access point that only pretends to have a listed name.
+TRUSTED_BSSIDS=""
 
 # 1 logs every firewall rewrite at debug level.
 VERBOSE=0

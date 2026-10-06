@@ -22,6 +22,7 @@
 #   - NO persist.adb.tcp.port  (persist property; bricked adbd on this device)
 #   - NO service.adb.adb_root  (clashed with KernelSU root handling)
 #   - Bounded waits only, no open-ended loops
+#   - Step 1 is read back: adbd is never started on a fence that did not install
 #   - Nothing that keeps the port reachable depends on the daemon surviving:
 #     step 2 is synchronous, the daemon only keeps the rule fresh afterwards
 
@@ -63,7 +64,24 @@ $TB/ip6tables -C INPUT -p tcp --dport "$ADB_PORT" -j ADB_WIFI6 2>/dev/null ||
 $TB/ip6tables -C ADB_WIFI6 -j REJECT 2>/dev/null ||
   $TB/ip6tables -A ADB_WIFI6 -j REJECT
 
-log "firewall bootstrap: REJECT $ADB_PORT installed"
+# The fence is the security boundary, so it is read back before adbd is told to
+# listen: a rule that did not install would leave the port open to everyone
+if $TB/iptables -C INPUT -p tcp --dport "$ADB_PORT" -j ADB_WIFI 2>/dev/null &&
+   $TB/iptables -C ADB_WIFI -j REJECT 2>/dev/null &&
+   $TB/ip6tables -C INPUT -p tcp --dport "$ADB_PORT" -j ADB_WIFI6 2>/dev/null &&
+   $TB/ip6tables -C ADB_WIFI6 -j REJECT 2>/dev/null; then
+  log "firewall bootstrap: REJECT $ADB_PORT verified"
+else
+  die "fence for port $ADB_PORT did not install, adbd stays off the network"
+fi
+
+# Android's own Wireless debugging is a second door, on a port this module knows
+# nothing about, so it can only be reported
+_tls=$(getprop service.adb.tls.port 2>/dev/null)
+case $_tls in
+    0|'') ;;
+    *) log "WARNING: Android Wireless debugging listens on port $_tls, outside this fence: turn it off in Developer options" ;;
+esac
 
 # ---------------------------------------------------------------------------
 # 2. LAN policy for this boot, synchronous: the port has to be reachable the
@@ -85,13 +103,13 @@ setsid sh -c 'sleep 2; setprop ctl.restart adbd' &
 # ---------------------------------------------------------------------------
 log "step 4: watcher"
 mkdir -p "$RUN_DIR"
-if [ -f "$RUN_DIR/watch.pid" ]; then
-  OLD=$(cat "$RUN_DIR/watch.pid" 2>/dev/null)
-  if [ -n "$OLD" ]; then
-    kill "$OLD" 2>/dev/null
-  fi
-  rm -f "$RUN_DIR/watch.pid"
+# the pidfile survives a reboot and pids are recycled, so it is only ever
+# signalled when the process behind it really is the watcher
+OLD=$(cat "$RUN_DIR/watch.pid" 2>/dev/null)
+if [ -n "$OLD" ] && grep -q "watch.sh" "/proc/$OLD/cmdline" 2>/dev/null; then
+  kill "$OLD" 2>/dev/null
 fi
+rm -f "$RUN_DIR/watch.pid"
 setsid $TB/sh "$MODULE_DIR/watch.sh" </dev/null >/dev/null 2>&1 &
 
 log "=== adb_wifi service end ==="
